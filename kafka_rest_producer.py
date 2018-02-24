@@ -2,13 +2,13 @@
 ###############################################################################
 # USAGE:
 # cd ~/jetson-inference/build/aarch64/bin
-# ./kafka_rest_producer.py -i /mapr/nuc.cluster.com/tmp/ -o /mapr/nuc.cluster.com/tmp/
+# ./kafka_rest_producer.py -i /mapr/nuc.cluster.com/images/ -o /mapr/nuc.cluster.com/images/
 #
 # MapR NFS share must be mounted under /mnt/
 #
 # Directories are in MapR-FS.
-# For example this command saves images to /mapr/nuc.cluster.com/tmp/:
-#   ./kafka_rest_producer.py -i /mapr/nuc.cluster.com/tmp/ -o /mapr/nuc.cluster.com/tmp/
+# For example this command saves images to /mapr/nuc.cluster.com/images/:
+#   ./kafka_rest_producer.py -i /mapr/nuc.cluster.com/images/ -o /mapr/nuc.cluster.com/images/
 ###############################################################################
 
 import sys, getopt
@@ -52,11 +52,13 @@ def main(argv):
     print('Saving boxed images to /mnt/' + boxdir)
 
     # lookup geolocation for lat / long feature columns
-    send_url = 'http://freegeoip.net/json'
-    r = requests.get(send_url)
-    j = json.loads(r.text)
-    lat = j['latitude']
-    lon = j['longitude']
+    #send_url = 'http://freegeoip.net/json'
+    #r = requests.get(send_url)
+    #j = json.loads(r.text)
+    #lat = j['latitude']
+    #lon = j['longitude']
+    lat = '0'
+    lon = '0'
 
     try:
         while True:
@@ -92,10 +94,10 @@ def main(argv):
             if len(rows) > 0:
                 x["average_box_size"] = average_box_size / len(rows)
 
-            subprocess.Popen('cp ' + infile + ' /mnt/' + rawdir, shell=True)
-            subprocess.Popen('cp ' + outfile + ' /mnt/' + boxdir, shell=True)
-            subprocess.Popen('rm -f ' + infile, shell=True)
-            subprocess.Popen('rm -f ' + outfile, shell=True)
+            print('copying ' + infile + ' /mnt/' + rawdir)
+            print('copying ' + outfile + ' /mnt/' + boxdir)
+            subprocess.Popen('cp ' + infile + ' /mnt/' + rawdir + '; rm -f ' + infile, shell=True)
+            subprocess.Popen('cp ' + outfile + ' /mnt/' + boxdir + '; rm -f ' + outfile, shell=True)
             x['boxes'] = rows
             x['numboxes'] = numboxes
             x['original_image'] = rawdir+infile
@@ -105,7 +107,7 @@ def main(argv):
             x['lon'] = lon
 
             # Publish object detection result to Kafka REST service.
-            url = 'http://192.168.0.22:8082/topics/%2Fapps%2Fmystream1%3Amytopic'
+            url = 'http://nodea:8082/topics/%2Fapps%2Fface_detection_stream%3Acamera1'
             payload = '{"records":[{"value":"' + base64.b64encode(json.dumps(x)) + '"}]}'
             headers = {'content-type': 'application/vnd.kafka.v1+json'}
             r = requests.post(url, data=payload, headers=headers)
